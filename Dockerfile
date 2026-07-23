@@ -6,6 +6,7 @@ COPY . .
 
 RUN apt update
 RUN apt install -y golang-go
+RUN apt install -y git
 
 RUN go version
 
