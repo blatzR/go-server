@@ -7,7 +7,7 @@ COPY . .
 RUN apt update
 RUN apt install -y golang-go
 
-RUN go -version
+RUN go version
 
 RUN go build -o myapp
 
