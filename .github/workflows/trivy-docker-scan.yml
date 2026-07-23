@@ -93,6 +93,7 @@ jobs:
       # # are still archived for review.
       - name: Upload Trivy report to S3
         if: always() && github.event_name == 'pull_request' && github.base_ref == 'main'
+        id: s3-upload
         run: |
           S3_KEY="${{ env.ECR_REPOSITORY }}/${{ env.IMAGE_TAG }}.pdf"
           aws s3 cp trivy-report.pdf "s3://${{ env.S3_REPORT_BUCKET }}/$S3_KEY"
