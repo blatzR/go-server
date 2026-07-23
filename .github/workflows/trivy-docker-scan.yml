@@ -10,7 +10,7 @@ on:
 env:
   IMAGE_NAME: hello-world-go
   IMAGE_TAG: ${{ github.sha }}
-  AWS_REGION: ap-south-1
+  AWS_REGION: us-east-1
   ECR_REPOSITORY: hello-world-go
   S3_REPORT_BUCKET: trivy-image-scan-report
 
