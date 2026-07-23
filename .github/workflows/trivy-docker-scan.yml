@@ -37,20 +37,29 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Run Trivy scan (SARIF, for GitHub Security tab)
-        uses: aquasecurity/trivy-action@v0.36.0
+      - name: Run Trivy scan (HTML report)
+        uses: aquasecurity/trivy-action@0.28.0
         with:
           image-ref: ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
-          format: 'sarif'
-          output: 'trivy-results.sarif'
+          format: 'template'
+          template: '@contrib/html.tpl'
+          output: 'trivy-report.html'
           severity: 'CRITICAL,HIGH,MEDIUM'
           exit-code: '0'
 
-      - name: Upload Trivy results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v4
+      - name: Convert Trivy report to PDF
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wkhtmltopdf
+          wkhtmltopdf trivy-report.html trivy-report.pdf
+
+      - name: Upload Trivy PDF report as artifact
         if: always()
+        uses: actions/upload-artifact@v4
         with:
-          sarif_file: 'trivy-results.sarif'
+          name: trivy-report
+          path: trivy-report.pdf
+          retention-days: 30
 
       - name: Run Trivy scan (fail build on fixable HIGH/CRITICAL)
         uses: aquasecurity/trivy-action@v0.36.0
