@@ -10,6 +10,9 @@ on:
 env:
   IMAGE_NAME: hello-world-go
   IMAGE_TAG: ${{ github.sha }}
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: hello-world-go
+  S3_REPORT_BUCKET: your-trivy-reports-bucket # TODO: set to your actual bucket name
 
 jobs:
   build-and-scan:
@@ -67,6 +70,7 @@ jobs:
           retention-days: 30
 
       - name: Run Trivy scan (fail build on fixable HIGH/CRITICAL)
+        id: trivy-gate
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
@@ -74,3 +78,45 @@ jobs:
           severity: 'CRITICAL,HIGH'
           ignore-unfixed: true
           exit-code: '1'
+
+      # Configured early (with `if: always()` below) so the S3 report upload can run
+      # even when the Trivy gate above fails - only the ECR push depends on it passing.
+      - name: Configure AWS credentials
+        if: always() && github.event_name == 'pull_request' && github.base_ref == 'main'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # Reuses the PDF produced earlier by the "Convert Trivy report to PDF" step -
+      # no re-scan needed. Runs regardless of the gate's outcome, so failed scans
+      # are still archived for review.
+      - name: Upload Trivy report to S3
+        if: always() && github.event_name == 'pull_request' && github.base_ref == 'main'
+        run: |
+          aws s3 cp trivy-report.pdf "s3://${{ env.S3_REPORT_BUCKET }}/${{ env.ECR_REPOSITORY }}/${{ env.IMAGE_TAG }}.pdf"
+
+      # --- Everything below only runs on PRs targeting main, and only if the Trivy gate above passed ---
+
+      - name: Login to Amazon ECR
+        if: github.event_name == 'pull_request' && github.base_ref == 'main' && steps.trivy-gate.outcome == 'success'
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Ensure ECR repository exists
+        if: github.event_name == 'pull_request' && github.base_ref == 'main' && steps.trivy-gate.outcome == 'success'
+        run: |
+          aws ecr describe-repositories --repository-names "${{ env.ECR_REPOSITORY }}" --region "${{ env.AWS_REGION }}" \
+            || aws ecr create-repository --repository-name "${{ env.ECR_REPOSITORY }}" --region "${{ env.AWS_REGION }}"
+
+      - name: Tag and push image to Amazon ECR
+        if: github.event_name == 'pull_request' && github.base_ref == 'main' && steps.trivy-gate.outcome == 'success'
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          docker tag ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
+          docker tag ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:latest
+          docker push $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
+          docker push $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:latest
+
