@@ -37,6 +37,11 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Download Trivy HTML template
+        run: |
+          mkdir -p contrib
+          curl -sSL -o contrib/html.tpl https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/html.tpl
+
       - name: Run Trivy scan (HTML report)
         uses: aquasecurity/trivy-action@v0.36.0
         with:
