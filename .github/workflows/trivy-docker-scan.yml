@@ -10,9 +10,9 @@ on:
 env:
   IMAGE_NAME: hello-world-go
   IMAGE_TAG: ${{ github.sha }}
-  AWS_REGION: us-east-1
+  AWS_REGION: ap-south-1
   ECR_REPOSITORY: hello-world-go
-  S3_REPORT_BUCKET: your-trivy-reports-bucket # TODO: set to your actual bucket name
+  S3_REPORT_BUCKET: trivy-image-scan-report
 
 jobs:
   build-and-scan:
@@ -82,7 +82,7 @@ jobs:
       # Configured early (with `if: always()` below) so the S3 report upload can run
       # even when the Trivy gate above fails - only the ECR push depends on it passing.
       - name: Configure AWS credentials
-        if: always() && github.event_name == 'pull_request' && github.base_ref == 'main'
+        # if: always() && github.event_name == 'pull_request' && github.base_ref == 'main'
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -93,7 +93,7 @@ jobs:
       # no re-scan needed. Runs regardless of the gate's outcome, so failed scans
       # are still archived for review.
       - name: Upload Trivy report to S3
-        if: always() && github.event_name == 'pull_request' && github.base_ref == 'main'
+        # if: always() && github.event_name == 'pull_request' && github.base_ref == 'main'
         run: |
           aws s3 cp trivy-report.pdf "s3://${{ env.S3_REPORT_BUCKET }}/${{ env.ECR_REPOSITORY }}/${{ env.IMAGE_TAG }}.pdf"
 
