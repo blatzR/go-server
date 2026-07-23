@@ -68,17 +68,7 @@ jobs:
           name: trivy-report
           path: trivy-report.pdf
           retention-days: 30
-
-      - name: Run Trivy scan (fail build on fixable HIGH/CRITICAL)
-        id: trivy-gate
-        uses: aquasecurity/trivy-action@v0.36.0
-        with:
-          image-ref: ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
-          format: 'table'
-          severity: 'CRITICAL,HIGH'
-          ignore-unfixed: true
-          exit-code: '1'
-
+          
       # Configured early (with `if: always()` below) so the S3 report upload can run
       # even when the Trivy gate above fails - only the ECR push depends on it passing.
       - name: Configure AWS credentials
@@ -97,6 +87,18 @@ jobs:
         run: |
           aws s3 cp trivy-report.pdf "s3://${{ env.S3_REPORT_BUCKET }}/${{ env.ECR_REPOSITORY }}/${{ env.IMAGE_TAG }}.pdf"
 
+
+      - name: Run Trivy scan (fail build on fixable HIGH/CRITICAL)
+        id: trivy-gate
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+          format: 'table'
+          severity: 'CRITICAL,HIGH'
+          ignore-unfixed: true
+          exit-code: '1'
+
+      
       # --- Everything below only runs on PRs targeting main, and only if the Trivy gate above passed ---
 
       - name: Login to Amazon ECR
