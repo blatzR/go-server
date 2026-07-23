@@ -16,14 +16,14 @@ This page documents the CI/CD pipeline that builds the `hello-world-go` Docker i
 
 ## 2. Goals
 
-- Build the Docker image on every push/PR to `main`.
+- Build the Docker image on every PR to `main`.
 - Scan the built image for CVEs before it can be considered mergeable.
 - Surface scan results in a durable, shareable format.
 - Fail CI when **fixable** HIGH/CRITICAL vulnerabilities are present, without blocking on issues with no available fix.
 
 ## 3. Current Workflow (`.github/workflows/docker-trivy.yml`)
 
-Triggered on: `push` to `main`, `pull_request` into `main`, and manual `workflow_dispatch`.
+Triggered on:  `pull_request` into `main`, and manual `workflow_dispatch`.
 
 | Step | Purpose |
 |---|---|
