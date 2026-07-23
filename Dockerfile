@@ -5,7 +5,7 @@ WORKDIR /app
 COPY . .
 
 RUN apt update
-RUN apt install golang-go
+RUN apt install -y golang-go
 
 RUN go -version
 
