@@ -87,6 +87,25 @@ jobs:
         run: |
           aws s3 cp trivy-report.pdf "s3://${{ env.S3_REPORT_BUCKET }}/${{ env.ECR_REPOSITORY }}/${{ env.IMAGE_TAG }}.pdf"
 
+      # # Reuses the PDF produced earlier by the "Convert Trivy report to PDF" step -
+      # # no re-scan needed. Runs regardless of the gate's outcome, so failed scans
+      # # are still archived for review.
+      # - name: Upload Trivy report to S3
+      #   if: always() && github.event_name == 'pull_request' && github.base_ref == 'main'
+      #   run: |
+      #     S3_KEY="${{ env.ECR_REPOSITORY }}/${{ env.IMAGE_TAG }}.pdf"
+      #     aws s3 cp trivy-report.pdf "s3://${{ env.S3_REPORT_BUCKET }}/$S3_KEY"
+      #     REPORT_URL=$(aws s3 presign "s3://${{ env.S3_REPORT_BUCKET }}/$S3_KEY" --expires-in 604800)
+      #     echo "report_url=$REPORT_URL" >> "$GITHUB_OUTPUT"
+
+      # - name: Comment Trivy report link on PR
+      #   if: always() && github.event_name == 'pull_request' && github.base_ref == 'main' && steps.s3-upload.outcome == 'success'
+      #   run: gh pr comment "$PR_NUMBER" --body "Report - $REPORT_URL"
+      #   env:
+      #     REPORT_URL: ${{ steps.s3-upload.outputs.report_url }}
+      #     IMAGE_TAG: ${{ env.IMAGE_TAG }}
+      #     GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #     PR_NUMBER: ${{ github.event.pull_request.number }}
 
       - name: Run Trivy scan (fail build on fixable HIGH/CRITICAL)
         id: trivy-gate
